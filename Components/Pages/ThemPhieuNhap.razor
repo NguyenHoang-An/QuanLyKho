@@ -1,0 +1,84 @@
+﻿@page "/them-phieu-nhap"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<EditForm Model="form" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Số phiếu nhập</label>
+        <InputText class="form-control" @bind-Value="form.So_Phieu_Nhap_Kho" />
+        <ValidationMessage For="@(() => form.So_Phieu_Nhap_Kho)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Kho</label>
+        <InputSelect class="form-select" @bind-Value="form.Kho_ID">
+            <option value="">-- Chọn kho --</option>
+            @foreach (var kho in DanhSachKho)
+            {
+                <option value="@kho.Id">@kho.Ten_Kho</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="@(() => form.Kho_ID)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Nhà cung cấp</label>
+        <InputSelect class="form-select" @bind-Value="form.NCC_ID">
+            <option value="">-- Chọn nhà cung cấp --</option>
+            @foreach (var ncc in DanhSachNCC)
+            {
+                <option value="@ncc.Id">@ncc.Ten_NCC</option>
+            }
+        </InputSelect>
+        <ValidationMessage For="@(() => form.NCC_ID)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Ngày nhập kho</label>
+        <InputDate class="form-control" @bind-Value="form.Ngay_Nhap_Kho" />
+        <ValidationMessage For="@(() => form.Ngay_Nhap_Kho)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Ghi chú</label>
+        <InputTextArea class="form-control" @bind-Value="form.Ghi_Chu" />
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <div class="alert alert-danger">@message</div>
+    }
+
+    <button type="submit" class="btn btn-primary">Lưu và tiếp tục nhập chi tiết</button>
+</EditForm>
+
+@code {
+    private NhapKho form = new();
+    private string? message;
+    private List<Kho> DanhSachKho = new();
+    private List<NhaCungCap> DanhSachNCC = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        DanhSachKho = await NhapKhoService.GetAllKhosAsync();
+        DanhSachNCC = await NhapKhoService.GetAllNCCsAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (form.Kho_ID == null || form.NCC_ID == null || form.Ngay_Nhap_Kho == null)
+        {
+            message = "Vui lòng nhập đầy đủ thông tin bắt buộc.";
+            return;
+        }
+
+        var id = await NhapKhoService.CreateOriginalAsync(form, new());
+        Navigation.NavigateTo($"/edit-chi-tiet-nhap/{id}", forceLoad: true); 
+    }
+}

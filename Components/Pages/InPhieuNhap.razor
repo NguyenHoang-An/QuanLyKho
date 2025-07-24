@@ -1,0 +1,237 @@
+﻿@page "/in-phieu-nhap-id/{id:int}"
+@using Client.Model
+@using Client.Server
+@using Humanizer
+@inject INhapKhoService NhapKhoService
+@inject IKhoService KhoService
+@inject ISanPhamService SanPhamService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<style>
+    @@media print {
+        body {
+            width: 1000px !important;
+            margin: 0 auto;
+        }
+    }
+</style>
+
+@if (isLoading)
+{
+    <p class="text-center text-gray-500">Đang tải dữ liệu...</p>
+}
+else if (header == null)
+{
+    <p class="text-center text-red-600">Không tìm thấy phiếu nhập với ID: @id</p>
+}
+else
+{
+    <div class="text-sm leading-6 w-full max-w-[1000px] mx-auto print:w-full">
+        <div class="text-right mb-4">
+            <div class="text-center mb-4">
+                <p class="text-2xl font-bold uppercase">PHIẾU NHẬP KHO</p>
+                <p class="text-sm font-bold">Mẫu Số : 01 - VT</p>
+                <p class="text-xs italic">(Ban Hành Theo QĐ Số 15/2006/QĐ-BTC <br /> Ngày 20/03/2006 Của Bộ Trưởng BTC)</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 mb-4">
+            <div>
+                <p>
+                    Đơn vị:
+                    @if (!isPrinting)
+                    {
+                        <input class="border px-2 py-1" @bind="donVi" />
+                    }
+                    else
+                    {
+                        <span class="ml-2">@donVi</span>
+                    }
+                </p>
+                <p>
+                    Bộ phận:
+                    @if (!isPrinting)
+                    {
+                        <input class="border px-2 py-1" @bind="boPhan" />
+                    }
+                    else
+                    {
+                        <span class="ml-2">@boPhan</span>
+                    }
+                </p>
+                <p>Ngày: @header.Ngay_Nhap_Kho.ToString("dd/MM/yyyy")</p>
+                <p>Số phiếu: @header.So_Phieu_Nhap_Kho</p>
+                <p>
+                    Họ tên người giao hàng:
+                    @if (!isPrinting)
+                    {
+                        <input class="border px-2 py-1" @bind="tenNguoiGiaoHang" />
+                    }
+                    else
+                    {
+                        <span class="ml-2">@tenNguoiGiaoHang</span>
+                    }
+                </p>
+                <p>
+                    Theo TK Số:
+                    @if (!isPrinting)
+                    {
+                        <input class="border px-2 py-1" @bind="soTK" />
+                    }
+                    else
+                    {
+                        <span class="ml-2">@soTK</span>
+                    }
+                </p>
+                <p>
+                    Nhập tại kho:
+                    @if (!isPrinting)
+                    {
+                        <select class="border px-2 py-1" @bind="header.Kho_ID">
+                            @foreach (var kho in dsKho)
+                            {
+                                <option value="@kho.Id">@kho.Ten_Kho</option>
+                            }
+                        </select>
+                    }
+                    else
+                    {
+                        <span class="ml-2 font-semibold">@GetTenKho(header.Kho_ID)</span>
+                    }
+                </p>
+            </div>
+            <div class="text-right">
+                <p>
+                    Địa điểm:
+                    @if (!isPrinting)
+                    {
+                        <input class="border px-2 py-1" @bind="diaDiem" />
+                    }
+                    else
+                    {
+                        <span class="ml-2">@diaDiem</span>
+                    }
+                </p>
+            </div>
+        </div>
+
+        <table class="table-auto w-full border text-sm">
+            <thead class="bg-gray-200">
+                <tr>
+                    <th class="border px-2 py-1">STT</th>
+                    <th class="border px-2 py-1">Tên nhãn hiệu, quy cách, phẩm chất, vật tư, dụng cụ, sản phẩm, hàng hóa</th>
+                    <th class="border px-2 py-1">Mã hàng</th>
+                    <th class="border px-2 py-1">Đơn vị tính</th>
+                    <th class="border px-2 py-1">Số lượng</th>
+                    <th class="border px-2 py-1">Đơn giá</th>
+                    <th class="border px-2 py-1">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < chiTietList.Count; i++)
+                {
+                    var item = chiTietList[i];
+                    <tr>
+                        <td class="border px-2 py-1 text-center">@(i + 1)</td>
+                        <td class="border px-2 py-1">@item.SanPham?.Ten_SP</td>
+                        <td class="border px-2 py-1">@item.SanPham?.Ma_SP</td>
+                        <td class="border px-2 py-1">@item.SanPham?.DonViTinh</td>
+                        <td class="border px-2 py-1 text-right">@item.SL_Nhap</td>
+                        <td class="border px-2 py-1 text-right">@item.Don_Gia_Nhap.ToString("N0")</td>
+                        <td class="border px-2 py-1 text-right">@((item.SL_Nhap * item.Don_Gia_Nhap).ToString("N0"))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <p class="mt-4 font-semibold">Tổng số tiền (viết bằng chữ): @ConvertNumberToWords((int)chiTietList.Sum(x => x.SL_Nhap * x.Don_Gia_Nhap)) đồng</p>
+
+        <div class="mt-10 w-full text-sm">
+            <div class="text-right mb-2">Ngày ..... tháng ..... năm .....</div>
+            <div class="text-center font-semibold w-full print:w-full">
+                <table class="table-fixed w-full min-w-[800px]">
+                    <colgroup>
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                    </colgroup>
+                    <tr class="align-top">
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Người Lập Phiếu</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Người Giao Hàng</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Thủ Kho</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Kế Toán Trưởng</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (!isPrinting)
+    {
+        <div id="printButtons" class="mt-6 flex gap-4">
+            <button class="border border-black text-black bg-white px-4 py-2 rounded" @onclick="ConfirmInPhieu">In phiếu</button>
+            <button class="border border-black text-black bg-white px-4 py-2 rounded" @onclick='() => Navigation.NavigateTo("/quan-ly-nhap-kho")'>Quay lại</button>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+
+    private HieuChinhThongTinPhieuNhap? header;
+    private List<NhapKhoRawData> chiTietList = new();
+    private List<Kho> dsKho = new();
+    private List<SanPham> dsSanPham = new();
+    private bool isLoading = true;
+    private bool isPrinting = false;
+    private string tenNguoiGiaoHang = string.Empty;
+    private string donVi = string.Empty;
+    private string boPhan = string.Empty;
+    private string diaDiem = string.Empty;
+    private string soTK = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        header = await NhapKhoService.GetHeaderAsync(id);
+        chiTietList = await NhapKhoService.GetDetailsAsync(id);
+
+        dsKho = await KhoService.GetAllKhoAsync();
+        dsSanPham = await SanPhamService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private string GetTenKho(int? id) => dsKho.FirstOrDefault(k => k.Id == id)?.Ten_Kho ?? "(Không rõ)";
+
+    private string ConvertNumberToWords(int number)
+    {
+        return number.ToWords(new System.Globalization.CultureInfo("vi"));
+    }
+
+    private async Task ConfirmInPhieu()
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn in phiếu?");
+        if (confirmed)
+        {
+            isPrinting = true;
+            StateHasChanged();
+            await Task.Delay(200);
+            await JS.InvokeVoidAsync("window.print");
+            isPrinting = false;
+        }
+    }
+}

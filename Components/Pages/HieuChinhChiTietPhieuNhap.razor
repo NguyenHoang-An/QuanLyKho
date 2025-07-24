@@ -1,0 +1,273 @@
+﻿@page "/hieu-chinh-chi-tiet-nhap/{NhapKhoId:int}"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Hiệu chỉnh chi tiết phiếu nhập</h3>
+
+@if (loading)
+{
+    <p>Loading...</p>
+}
+else if (loadError != null)
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (phieuNhap != null)
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <p><strong>Số phiếu nhập:</strong> @phieuNhap.So_Phieu_Nhap_Kho</p>
+            <p><strong>Kho:</strong> @(phieuNhap.Kho?.Ten_Kho ?? "N/A")</p>
+            <p><strong>Nhà cung cấp:</strong> @(phieuNhap.NhaCungCap?.Ten_NCC ?? "N/A")</p>
+            <p><strong>Ngày nhập:</strong> @phieuNhap.Ngay_Nhap_Kho.ToShortDateString()</p>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(actionError))
+    {
+        <div class="alert alert-warning">@actionError</div>
+    }
+
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Mã SP</th>
+                <th>Tên SP</th>
+                <th>Số lượng</th>
+                <th>Đơn giá</th>
+                <th>Trị giá</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in chiTiets)
+            {
+                <tr>
+                    <td>@item.Ma_SP</td>
+                    <td>@item.Ten_SP</td>
+                    <td>
+                        <InputNumber @bind-Value="item.SL_Nhap" class="form-control" min="1" />
+                    </td>
+                    <td>
+                        <InputNumber @bind-Value="item.Don_Gia_Nhap" class="form-control" min="0" />
+                    </td>
+                    <td>@(item.SL_Nhap* item.Don_Gia_Nhap)</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" @onclick="() => Save(item)" disabled="@(!IsValidForSave(item))">Lưu</button>
+                        <button class="btn btn-danger btn-sm" @onclick="@(() => OnDeleteClicked(item))">Xóa</button>
+                    </td>
+                </tr>
+            }
+
+            <tr>
+                <td>
+                    <InputText @bind-Value="newItem.Ma_SP" class="form-control" @oninput="OnMaSPChanged" />
+                </td>
+                <td>
+                    <InputText @bind-Value="newItem.Ten_SP" class="form-control" disabled />
+                </td>
+                <td>
+                    <InputNumber @bind-Value="newItem.SL_Nhap" class="form-control" min="1" />
+                </td>
+                <td>
+                    <InputNumber @bind-Value="newItem.Don_Gia_Nhap" class="form-control" min="0" />
+                </td>
+                <td>@(newItem.SL_Nhap* newItem.Don_Gia_Nhap)</td>
+                <td>
+                    <button class="btn btn-success btn-sm" @onclick="Add" disabled="@(!IsValidForAdd())">Thêm</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="mt-4">
+        <button class="bg-gray-400 text-white px-4 py-2 rounded" @onclick='() => Navigation.NavigateTo("/quan-ly-nhap-kho")'>Quay lại</button>
+    </div>
+}
+else
+{
+    <p>Không tìm thấy phiếu nhập!</p>
+}
+
+@code {
+    [Parameter] public int NhapKhoId { get; set; }
+
+    private HieuChinhThongTinPhieuNhap? phieuNhap;
+    private List<NhapKhoChiTietModel> chiTiets = new();
+    private NhapKhoChiTietModel newItem = new();
+
+    private bool loading = true;
+    private string? loadError = null;
+    private string? actionError = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = true;
+        try
+        {
+            phieuNhap = await NhapKhoService.GetHeaderAsync(NhapKhoId);
+            if (phieuNhap == null)
+            {
+                loadError = "Không tìm thấy phiếu nhập!";
+                return;
+            }
+
+            var rawList = await NhapKhoService.GetDetailsAsync(NhapKhoId);
+            chiTiets = rawList.Select(x => new NhapKhoChiTietModel
+            {
+                Ma_SP = x.SanPham?.Ma_SP ?? "",
+                Ten_SP = x.SanPham?.Ten_SP ?? "",
+                San_Pham_ID = x.San_Pham_ID,
+                SL_Nhap = x.SL_Nhap,
+                Don_Gia_Nhap = x.Don_Gia_Nhap
+            }).ToList();
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Lỗi khi tải dữ liệu: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async void OnMaSPChanged(ChangeEventArgs e)
+    {
+        var maSP = e.Value?.ToString()?.Trim() ?? "";
+        newItem.Ma_SP = maSP;
+
+        if (!string.IsNullOrEmpty(maSP))
+        {
+            try
+            {
+                var sp = await NhapKhoService.GetProductByMaSPAsync(maSP);
+                if (sp != null)
+                {
+                    newItem.Ten_SP = sp.Ten_SP;
+                    newItem.San_Pham_ID = sp.Id;
+                    actionError = null;
+                }
+                else
+                {
+                    newItem.Ten_SP = "";
+                    newItem.San_Pham_ID = 0;
+                    actionError = $"Không tìm thấy sản phẩm có mã '{maSP}'";
+                }
+            }
+            catch (Exception ex)
+            {
+                actionError = $"Lỗi khi tìm sản phẩm: {ex.Message}";
+            }
+        }
+        else
+        {
+            newItem.Ten_SP = "";
+            newItem.San_Pham_ID = 0;
+            actionError = null;
+        }
+
+        StateHasChanged();
+    }
+
+    private bool IsValidForAdd()
+    {
+        return
+            !string.IsNullOrWhiteSpace(newItem.Ma_SP)
+            && !string.IsNullOrWhiteSpace(newItem.Ten_SP)
+            && newItem.SL_Nhap > 0
+            && newItem.Don_Gia_Nhap >= 0
+            && newItem.San_Pham_ID > 0;
+    }
+
+    private bool IsValidForSave(NhapKhoChiTietModel item)
+    {
+        return item.SL_Nhap > 0 && item.Don_Gia_Nhap >= 0;
+    }
+
+    private async Task Add()
+    {
+        actionError = null;
+
+        if (!IsValidForAdd())
+        {
+            actionError = "Vui lòng nhập đầy đủ mã sản phẩm hợp lệ, số lượng > 0, đơn giá >= 0.";
+            return;
+        }
+
+        try
+        {
+            await NhapKhoService.AddDetailAsync(NhapKhoId, newItem);
+            await ReloadDetails();
+            newItem = new NhapKhoChiTietModel();
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Lỗi khi thêm chi tiết: {ex.Message}";
+
+            if (ex.InnerException != null)
+                actionError += " - Inner: " + ex.InnerException.Message;
+        }
+    }
+
+    private async Task Save(NhapKhoChiTietModel item)
+    {
+        actionError = null;
+
+        if (!IsValidForSave(item))
+        {
+            actionError = "Số lượng phải > 0 và đơn giá >= 0.";
+            return;
+        }
+
+        try
+        {
+            await NhapKhoService.UpdateDetailAsync(NhapKhoId, item);
+            await ReloadDetails();
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Lỗi khi cập nhật chi tiết: {ex.Message}";
+        }
+    }
+
+    private bool isProcessing = false;
+
+    private async Task OnDeleteClicked(NhapKhoChiTietModel item)
+    {
+        if (isProcessing) return;
+
+        isProcessing = true;
+        actionError = null;
+
+        try
+        {
+            await NhapKhoService.DeleteDetailAsync(NhapKhoId, item.San_Pham_ID);
+            await ReloadDetails();
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Lỗi khi xóa chi tiết: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+
+    private async Task ReloadDetails()
+    {
+        var rawList = await NhapKhoService.GetDetailsAsync(NhapKhoId);
+        chiTiets = rawList.Select(x => new NhapKhoChiTietModel
+        {
+            Ma_SP = x.SanPham?.Ma_SP ?? "",
+            Ten_SP = x.SanPham?.Ten_SP ?? "",
+            San_Pham_ID = x.San_Pham_ID,
+            SL_Nhap = x.SL_Nhap,
+            Don_Gia_Nhap = x.Don_Gia_Nhap
+        }).ToList();
+    }
+}

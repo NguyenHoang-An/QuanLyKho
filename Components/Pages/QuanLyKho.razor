@@ -1,0 +1,140 @@
+﻿@page "/kho"
+@using Client.Model
+@using Client.Server
+@inject IKhoService KhoService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+<h3>Quản lý Kho</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else if (!showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">Thêm mới</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Tên Kho</th>
+                <th>Ghi chú</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ten_Kho</td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditForm(item.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Tên Kho</label>
+            <InputText class="form-control" @bind-Value="model.Ten_Kho" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Ghi chú</label>
+            <InputText class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <button type="submit" class="btn btn-primary">@((isEdit ? "Cập nhật" : "Thêm mới"))</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Hủy</button>
+    </EditForm>
+}
+
+@code {
+    private List<Kho> danhSach = new();
+    private Kho model = new();
+    private bool isEdit = false;
+    private bool showForm = false;
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        danhSach = await KhoService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        model = new Kho();
+        showForm = true;
+        isEdit = false;
+        errorMessage = string.Empty;
+    }
+
+    private void ShowEditForm(int id)
+    {
+        var item = danhSach.FirstOrDefault(x => x.Id == id);
+        if (item != null)
+        {
+            model = new Kho
+            {
+                Id = item.Id,
+                Ten_Kho = item.Ten_Kho,
+                Ghi_Chu = item.Ghi_Chu
+            };
+            showForm = true;
+            isEdit = true;
+            errorMessage = string.Empty;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        bool isUnique = await KhoService.IsTenKhoUniqueAsync(model.Ten_Kho, isEdit ? model.Id : null);
+        if (!isUnique)
+        {
+            errorMessage = "Tên kho đã tồn tại. Vui lòng chọn tên khác.";
+            return;
+        }
+
+        if (isEdit)
+            await KhoService.UpdateAsync(model);
+        else
+            await KhoService.AddAsync(model);
+
+        danhSach = await KhoService.GetAllAsync();
+        Cancel();
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa không?");
+        if (confirmed)
+        {
+            await KhoService.DeleteAsync(id);
+            danhSach = await KhoService.GetAllAsync();
+        }
+    }
+
+    private void Cancel()
+    {
+        model = new Kho();
+        showForm = false;
+        isEdit = false;
+        errorMessage = string.Empty;
+    }
+}

@@ -1,0 +1,103 @@
+﻿@page "/them-phieu-xuat"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject IKhoService KhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h2 class="text-2xl font-bold text-blue-700 mb-6">📝 Thêm phiếu xuất kho</h2>
+
+<EditForm Model="phieu" OnValidSubmit="HandleSubmit" class="space-y-6">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-red-600" />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label class="block mb-1 font-medium text-gray-700">Số phiếu xuất <span class="text-red-500">*</span></label>
+            <InputText class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300" @bind-Value="phieu.So_Phieu_Xuat_Kho" placeholder="Nhập số phiếu" />
+        </div>
+
+        <div>
+            <label class="block mb-1 font-medium text-gray-700">Kho <span class="text-red-500">*</span></label>
+            <InputSelect class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300" @bind-Value="phieu.Kho_ID" TValue="int?">
+                <option value="">-- Chọn kho --</option>
+                @foreach (var kho in dsKho)
+                {
+                    <option value="@kho.Id">@kho.Ten_Kho</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div>
+            <label class="block mb-1 font-medium text-gray-700">Ngày xuất kho <span class="text-red-500">*</span></label>
+            <InputDate class="w-full border rounded px-3 py-2 focus:outline-none focus:ring focus:ring-blue-300" @bind-Value="phieu.Ngay_Xuat_Kho" />
+        </div>
+
+        <div class="md:col-span-2">
+            <label class="block mb-1 font-medium text-gray-700">Ghi chú</label>
+            <InputTextArea class="w-full border rounded px-3 py-2 h-24 focus:outline-none focus:ring focus:ring-blue-300" @bind-Value="phieu.Ghi_Chu" placeholder="Thêm ghi chú (nếu có)" />
+        </div>
+    </div>
+
+    <div class="flex justify-end gap-4 mt-6">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow">💾 Lưu & Tiếp tục</button>
+        <button type="button" class="border border-gray-400 text-gray-700 px-6 py-2 rounded hover:bg-gray-100" @onclick="HuyBo">❌ Hủy</button>
+    </div>
+</EditForm>
+
+@code {
+    private XuatKhoHeader phieu = new()
+    {
+        Ngay_Xuat_Kho = DateTime.Today
+    };
+
+    private List<Kho> dsKho = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        dsKho = await KhoService.GetAllKhoAsync();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(phieu.So_Phieu_Xuat_Kho) || !phieu.Kho_ID.HasValue || phieu.Ngay_Xuat_Kho == default)
+        {
+            Console.WriteLine("❗Thông tin bắt buộc chưa đầy đủ.");
+            return;
+        }
+
+        try
+        {
+            var successEF = await XuatKhoService.CreatePhieuAsync(phieu);
+
+            var custom = new XuatKhoEdit
+            {
+                So_Phieu_Xuat_Kho = phieu.So_Phieu_Xuat_Kho,
+                Kho_ID = phieu.Kho_ID,
+                Ngay_Xuat_Kho = phieu.Ngay_Xuat_Kho,
+                Ghi_Chu = phieu.Ghi_Chu
+            };
+
+            var successSQL = await XuatKhoService.InsertToCustomTableAsync(custom);
+
+            if (successEF && successSQL)
+            {
+                Navigation.NavigateTo($"/hieu-chinh-chi-tiet-xuat/{phieu.So_Phieu_Xuat_Kho}");
+            }
+            else
+            {
+                Console.WriteLine("❌ Không thể lưu phiếu vào cả 2 bảng.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Lỗi xử lý khi lưu phiếu: {ex.Message}");
+        }
+    }
+
+    private void HuyBo()
+    {
+        Navigation.NavigateTo("/xuat-kho");
+    }
+}

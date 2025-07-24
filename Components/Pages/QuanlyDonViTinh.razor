@@ -1,0 +1,176 @@
+﻿@page "/donvitinh"
+@using System.ComponentModel.DataAnnotations
+@using Client.Server
+@using Client.Model 
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject IDonViTinhService DonViTinhService
+@rendermode InteractiveServer
+
+<h3>Quản lý Đơn Vị Tính</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else if (!showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">Thêm mới</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Tên Đơn Vị Tính</th>
+                <th>Ghi chú</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ten_DonViTinh</td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditForm(item.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <h4>@(isEdit ? "Cập nhật" : "Thêm mới") Đơn Vị Tính</h4>
+
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Tên Đơn Vị Tính</label>
+            <InputText class="form-control" @bind-Value="model.Ten_DonViTinh" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Ghi chú</label>
+            <InputText class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">@(isEdit ? "Cập nhật" : "Thêm mới")</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Hủy</button>
+    </EditForm>
+}
+
+@code {
+    private List<DonViTinh> danhSach = new();
+    private DonViTinh model = new();
+    private bool isLoading = true;
+    private bool isEdit = false;
+    private bool showForm = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        danhSach = await DonViTinhService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        model = new DonViTinh();
+        isEdit = false;
+        showForm = true;
+        errorMessage = null;
+    }
+
+    private void ShowEditForm(int id)
+    {
+        var item = danhSach.FirstOrDefault(x => x.Id == id);
+        if (item != null)
+        {
+            model = new DonViTinh
+            {
+                Id = item.Id,
+                Ten_DonViTinh = item.Ten_DonViTinh,
+                Ghi_Chu = item.Ghi_Chu
+            };
+            isEdit = true;
+            showForm = true;
+            errorMessage = null;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn xóa không?");
+        if (confirmed)
+        {
+            try
+            {
+                await DonViTinhService.DeleteAsync(id);
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"Lỗi khi xóa: {ex.Message}");
+            }
+        }
+    }
+
+    private void Cancel()
+    {
+        showForm = false;
+        model = new DonViTinh();
+        isEdit = false;
+        errorMessage = null;
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = null;
+        var tenCanKiemTra = model.Ten_DonViTinh?.Trim().ToLower();
+
+        bool daTonTai = danhSach.Any(x =>
+            x.Ten_DonViTinh.Trim().ToLower() == tenCanKiemTra &&
+            (!isEdit || x.Id != model.Id)
+        );
+
+        if (daTonTai)
+        {
+            errorMessage = "Tên đơn vị tính đã tồn tại.";
+            return;
+        }
+
+        try
+        {
+            if (isEdit)
+            {
+                await DonViTinhService.UpdateAsync(model);
+            }
+            else
+            {
+                await DonViTinhService.AddAsync(model);
+            }
+
+            await LoadData();
+            Cancel();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi khi lưu: {ex.Message}";
+        }
+    }
+}

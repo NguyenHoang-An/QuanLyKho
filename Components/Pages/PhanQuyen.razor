@@ -1,0 +1,123 @@
+﻿@page "/kho-user"
+@using Client.Model
+@using Client.Server
+@inject IKhoUserService KhoUserService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h3>Phân quyền kho cho user</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else
+{
+    @if (showForm)
+    {
+        <EditForm Model="model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label class="form-label">Mã đăng nhập</label>
+                <InputText class="form-control" @bind-Value="model.Ma_Dang_Nhap" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Kho</label>
+                <InputSelect class="form-control" @bind-Value="model.Kho_ID">
+                    <option value="">-- Chọn kho --</option>
+                    @foreach (var kho in danhSachKhos)
+                    {
+                        <option value="@kho.Id">@kho.Ten_Kho</option>
+                    }
+                </InputSelect>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+
+            <button type="submit" class="btn btn-primary me-2">Lưu phân quyền</button>
+            <button type="button" class="btn btn-secondary" @onclick="CancelForm">Hủy</button>
+        </EditForm>
+        <hr />
+    }
+    else
+    {
+        <button class="btn btn-success mb-3" @onclick="() => showForm = true">Thêm phân quyền</button>
+    }
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Mã đăng nhập</th>
+                <th>Tên kho</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ma_Dang_Nhap</td>
+                    <td>@danhSachKhos.FirstOrDefault(x => x.Id == item.Kho_ID)?.Ten_Kho</td>
+                    <td>
+                        <button class="btn btn-danger btn-sm" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<KhoUser> danhSach = new();
+    private List<Kho> danhSachKhos = new();
+    private KhoUser model = new();
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool showForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        danhSach = await KhoUserService.GetAllAsync();
+        danhSachKhos = await KhoUserService.GetAllKhosAsync();
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        bool isUnique = await KhoUserService.IsUniqueAsync(model.Ma_Dang_Nhap, model.Kho_ID);
+        if (!isUnique)
+        {
+            errorMessage = "Người dùng đã được phân quyền với kho này.";
+            return;
+        }
+
+        await KhoUserService.AddAsync(model);
+        danhSach = await KhoUserService.GetAllAsync();
+        model = new KhoUser();
+        errorMessage = string.Empty;
+        showForm = false; // Ẩn form sau khi lưu
+    }
+
+    private void CancelForm()
+    {
+        model = new KhoUser();
+        errorMessage = string.Empty;
+        showForm = false;
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa phân quyền này?");
+        if (confirmed)
+        {
+            await KhoUserService.DeleteAsync(id);
+            danhSach = await KhoUserService.GetAllAsync();
+        }
+    }
+}

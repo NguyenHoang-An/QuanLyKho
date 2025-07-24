@@ -1,0 +1,87 @@
+﻿@page "/xem-phieu-xuat/{SoPhieu}"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject IKhoService KhoService
+@inject ISanPhamService SanPhamService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3 class="text-xl font-bold mb-4 text-blue-600">👁 Xem chi tiết phiếu xuất</h3>
+
+@if (header == null)
+{
+    <p class="text-red-600 font-semibold">Không tìm thấy phiếu xuất với số: @SoPhieu</p>
+}
+else
+{
+    <div class="text-sm leading-6 mb-4 p-4 border rounded bg-white shadow">
+        <h4 class="font-semibold mb-2 text-gray-700">Thông tin phiếu xuất</h4>
+        <p><strong>Số phiếu:</strong> @header.So_Phieu_Xuat_Kho</p>
+        <p><strong>Kho:</strong> @GetTenKho(header.Kho_ID)</p>
+        <p><strong>Ngày xuất:</strong> @header.Ngay_Xuat_Kho?.ToString("dd/MM/yyyy")</p>
+        <p><strong>Ghi chú:</strong> @header.Ghi_Chu</p>
+    </div>
+
+    <div class="mb-4">
+        <h4 class="font-semibold text-gray-700 mb-2">📦 Danh sách sản phẩm xuất</h4>
+        <table class="table-auto w-full border text-sm shadow bg-white">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-3 py-2 border text-left">Mã SP</th>
+                    <th class="px-3 py-2 border text-left">Tên sản phẩm</th>
+                    <th class="px-3 py-2 border text-right">Số lượng</th>
+                    <th class="px-3 py-2 border text-right">Đơn giá</th>
+                    <th class="px-3 py-2 border text-right">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in chiTietList)
+                {
+                    <tr>
+                        <td class="border px-3 py-1">@item.San_Pham_ID</td>
+                        <td class="border px-3 py-1">@GetTenSanPham(item.San_Pham_ID)</td>
+                        <td class="border px-3 py-1 text-right">@item.SL_Xuat</td>
+                        <td class="border px-3 py-1 text-right">@item.Don_Gia_Xuat.ToString("N0")</td>
+                        <td class="border px-3 py-1 text-right">@((item.SL_Xuat * item.Don_Gia_Xuat).ToString("N0"))</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <button class="mt-4 px-5 py-2 bg-gray-600 text-white rounded hover:bg-gray-700" @onclick="QuayLai">🔙 Quay lại</button>
+}
+
+@code {
+    [Parameter] public string SoPhieu { get; set; } = string.Empty;
+
+    private XuatKhoEdit? header;
+    private List<XuatKhoDetail> chiTietList = new();
+    private List<Kho> dsKho = new();
+    private List<SanPham> dsSanPham = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        header = await XuatKhoService.GetPhieuFromCustomTableAsync(SoPhieu);
+
+        var headerEF = await XuatKhoService.GetPhieuAsync(SoPhieu);
+        if (headerEF != null)
+        {
+            chiTietList = await XuatKhoService.GetChiTietPhieuAsync(headerEF.Id);
+        }
+
+        dsKho = await KhoService.GetAllKhoAsync();
+        dsSanPham = await SanPhamService.GetAllAsync();
+    }
+
+    string GetTenKho(int? id) => dsKho.FirstOrDefault(k => k.Id == id)?.Ten_Kho ?? "(Không rõ)";
+
+    string GetTenSanPham(string? ma)
+    {
+        if (string.IsNullOrWhiteSpace(ma)) return "(Không rõ)";
+        return dsSanPham.FirstOrDefault(sp => sp.Ma_SP == ma)?.Ten_SP ?? "(Không rõ)";
+    }
+
+    void QuayLai() => Navigation.NavigateTo("/xuat-kho");
+}

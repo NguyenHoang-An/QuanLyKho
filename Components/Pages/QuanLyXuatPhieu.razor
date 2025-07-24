@@ -1,0 +1,120 @@
+﻿@page "/xuat-kho"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject IKhoService KhoService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3 class="text-lg font-bold mb-4">📦 Danh sách phiếu xuất kho</h3>
+
+@if (listPhieu == null)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else
+{
+    <table class="table-auto w-full border text-sm">
+        <thead>
+            <tr class="bg-gray-200">
+                <th class="px-4 py-2">Số phiếu</th>
+                <th class="px-4 py-2">Kho</th>
+                <th class="px-4 py-2">Ngày xuất</th>
+                <th class="px-4 py-2">Ghi chú</th>
+                <th class="px-4 py-2">Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in listPhieu)
+            {
+                <tr>
+                    <td class="border px-4 py-2">@item.So_Phieu_Xuat_Kho</td>
+                    <td class="border px-4 py-2">@GetTenKho(item.Kho_ID)</td>
+                    <td class="border px-4 py-2">@item.Ngay_Xuat_Kho?.ToString("dd/MM/yyyy")</td>
+                    <td class="border px-4 py-2">@item.Ghi_Chu</td>
+                    <td class="border px-4 py-2">
+                        <button class="text-blue-600 underline" @onclick="() => EditHeader(item.So_Phieu_Xuat_Kho)">✏️ Sửa</button>
+                        <button class="text-green-600 underline ml-2" @onclick="() => EditDetail(item.So_Phieu_Xuat_Kho)">🧾 Chi tiết</button>
+                        <button class="text-red-600 underline ml-2" @onclick="() => Delete(item.So_Phieu_Xuat_Kho)">🗑 Xóa</button>
+                        <button class="text-purple-600 underline ml-2" @onclick="() => View(item.So_Phieu_Xuat_Kho)">👁 Xem</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="mt-4 flex gap-3">
+        <button class="bg-blue-500 text-black px-4 py-2 rounded shadow" @onclick="NewPhieu">
+            ➕ Thêm phiếu xuất
+        </button>
+        <button class="bg-green-600 text-black px-4 py-2 rounded shadow" @onclick="() => showPopup = true">
+            🖨️ In phiếu
+        </button>
+
+    </div>
+}
+
+@if (showPopup)
+{
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white p-6 rounded shadow-lg w-96">
+            <h4 class="text-lg font-semibold mb-4">Chọn phiếu cần in</h4>
+            <select class="w-full mb-4 p-2 border" @bind="selectedSoPhieu">
+                <option value="">-- Chọn số phiếu --</option>
+                @foreach (var p in listPhieu)
+                {
+                    <option value="@p.So_Phieu_Xuat_Kho">@p.So_Phieu_Xuat_Kho - @GetTenKho(p.Kho_ID)</option>
+                }
+            </select>
+            <div class="flex justify-end gap-2">
+                <button class="px-4 py-2 bg-gray-400 text-white rounded" @onclick="() => showPopup = false">Hủy</button>
+                <button class="px-4 py-2 bg-blue-600 text-white rounded" @onclick="PrintSelected">In</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<XuatKhoEdit> listPhieu = new();
+    private List<Kho> dsKho = new();
+    private bool showPopup = false;
+    private string selectedSoPhieu = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        listPhieu = await XuatKhoService.GetDanhSachPhieuTuCustomAsync();
+        dsKho = await KhoService.GetAllKhoAsync();
+    }
+
+    string GetTenKho(int? khoId)
+    {
+        return dsKho.FirstOrDefault(k => k.Id == khoId)?.Ten_Kho ?? "(Không rõ)";
+    }
+
+    void NewPhieu() => Navigation.NavigateTo("/them-phieu-xuat");
+    void EditHeader(string soPhieu) => Navigation.NavigateTo($"/hieu-chinh-phieu-xuat/{soPhieu}");
+    void EditDetail(string soPhieu) => Navigation.NavigateTo($"/hieu-chinh-chi-tiet-xuat/{soPhieu}");
+    void View(string soPhieu) => Navigation.NavigateTo($"/xem-phieu-xuat/{soPhieu}");
+
+    async Task Delete(string soPhieu)
+    {
+        var confirmed = await JS.InvokeAsync<bool>("confirm", $"Bạn có chắc chắn muốn xóa phiếu: {soPhieu}?");
+        if (confirmed)
+        {
+            await XuatKhoService.DeletePhieuAsync(soPhieu);
+            await XuatKhoService.DeletePhieuFromCustomTableAsync(soPhieu);
+            listPhieu = await XuatKhoService.GetDanhSachPhieuTuCustomAsync();
+            StateHasChanged();
+        }
+    }
+
+    void PrintSelected()
+    {
+        if (!string.IsNullOrWhiteSpace(selectedSoPhieu))
+        {
+            Navigation.NavigateTo($"/in-phieu-xuat/{selectedSoPhieu}");
+        }
+        showPopup = false;
+    }
+}

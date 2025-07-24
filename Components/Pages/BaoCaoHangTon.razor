@@ -1,0 +1,63 @@
+﻿@page "/hang-ton"
+@using Client.Model
+@using Client.Server
+@inject IThongKeService ThongKeService
+@rendermode InteractiveServer
+
+<h3 class="text-lg font-bold mb-4">📊 Báo cáo xuất nhập tồn</h3>
+
+<div class="flex gap-4 mb-4">
+    <div>
+        <label>Từ ngày:</label>
+        <input type="date" @bind="tuNgay" class="border px-2 py-1" />
+    </div>
+    <div>
+        <label>Đến ngày:</label>
+        <input type="date" @bind="denNgay" class="border px-2 py-1" />
+    </div>
+    <button class="bg-blue-500 text-white px-4 py-2 rounded" @onclick="TimKiem">🔍 Tìm</button>
+</div>
+
+@if (data == null)
+{
+    <p>Chưa có dữ liệu</p>
+}
+else
+{
+    <table class="table-auto w-full border text-sm">
+        <thead class="bg-gray-100">
+            <tr>
+                <th class="border px-2 py-1">Mã sản phẩm</th>
+                <th class="border px-2 py-1">Tên sản phẩm</th>
+                <th class="border px-2 py-1">SL Đầu kỳ</th>
+                <th class="border px-2 py-1">SL Nhập</th>
+                <th class="border px-2 py-1">SL Xuất</th>
+                <th class="border px-2 py-1">SL Cuối kỳ</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in data)
+            {
+                <tr>
+                    <td class="border px-2 py-1">@item.Ma_SP</td>
+                    <td class="border px-2 py-1">@item.Ten_SP</td>
+                    <td class="border px-2 py-1 text-right">@item.So_Luong_Dau_Ky</td>
+                    <td class="border px-2 py-1 text-right">@item.So_Luong_Nhap</td>
+                    <td class="border px-2 py-1 text-right">@item.So_Luong_Xuat</td>
+                    <td class="border px-2 py-1 text-right">@item.So_Luong_Cuoi_Ky</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private DateTime tuNgay = DateTime.Today.AddDays(-30);
+    private DateTime denNgay = DateTime.Today;
+    private List<BaoCaoXNT>? data;
+
+    private async Task TimKiem()
+    {
+        data = await ThongKeService.GetBaoCaoXNT(tuNgay, denNgay);
+    }
+}

@@ -1,0 +1,120 @@
+﻿@page "/chi-tiet-nhap/{Id:int}"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3>Chi tiết phiếu nhập kho</h3>
+
+@if (isLoading)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else if (nhapKho == null)
+{
+    <p class="text-danger">Không tìm thấy phiếu nhập với ID = @Id</p>
+}
+else
+{
+    <dl class="row">
+        <dt class="col-sm-3">Số phiếu nhập:</dt>
+        <dd class="col-sm-9">@nhapKho.So_Phieu_Nhap_Kho</dd>
+
+        <dt class="col-sm-3">Kho:</dt>
+        <dd class="col-sm-9">@tenKho</dd>
+
+        <dt class="col-sm-3">Nhà cung cấp:</dt>
+        <dd class="col-sm-9">@tenNCC</dd>
+
+        <dt class="col-sm-3">Ngày nhập kho:</dt>
+        <dd class="col-sm-9">@nhapKho.Ngay_Nhap_Kho?.ToString("dd/MM/yyyy")</dd>
+
+        <dt class="col-sm-3">Ghi chú:</dt>
+        <dd class="col-sm-9">@nhapKho.Ghi_Chu</dd>
+    </dl>
+
+    <h4>Chi tiết sản phẩm</h4>
+    @if (chiTietSanPham == null || !chiTietSanPham.Any())
+    {
+        <p>Không có sản phẩm nào trong phiếu nhập này.</p>
+    }
+    else
+    {
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Mã SP</th>
+                    <th>Tên SP</th>
+                    <th>Số lượng nhập</th>
+                    <th>Đơn giá nhập</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in chiTietSanPham)
+                {
+                    <tr>
+                        <td>@item.Ma_SP</td>
+                        <td>@item.Ten_SP</td>
+                        <td>@item.SL_Nhap</td>
+                        <td>@item.Don_Gia_Nhap.ToString("N0")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+
+    <button class="btn btn-secondary" @onclick="QuayLai">Quay lại</button>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private NhapKho? nhapKho;
+    private string tenKho = "";
+    private string tenNCC = "";
+    private bool isLoading = true;
+    private List<NhapKhoChiTietModel> chiTietSanPham = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadChiTiet();
+    }
+
+    private async Task LoadChiTiet()
+    {
+        isLoading = true;
+
+        nhapKho = await NhapKhoService.GetByIdAsync(Id);
+
+        if (nhapKho != null)
+        {
+            var kho = nhapKho.Kho_ID.HasValue
+                ? await NhapKhoService.GetKhoByIdAsync(nhapKho.Kho_ID.Value)
+                : null;
+            tenKho = kho?.Ten_Kho ?? "N/A";
+
+            var ncc = nhapKho.NCC_ID.HasValue
+                ? await NhapKhoService.GetNCCByIdAsync(nhapKho.NCC_ID.Value)
+                : null;
+            tenNCC = ncc?.Ten_NCC ?? "N/A";
+
+            var nhapKhoId = await NhapKhoService.GetOriginalNhapKhoIdBySoPhieuAsync(nhapKho.So_Phieu_Nhap_Kho);
+            if (nhapKhoId.HasValue)
+            {
+                chiTietSanPham = await NhapKhoService.GetChiTietModelsAsync(nhapKhoId.Value);
+            }
+            else
+            {
+                chiTietSanPham = new();
+            }
+        }
+
+        isLoading = false;
+    }
+
+    private void QuayLai()
+    {
+        Navigation.NavigateTo("/quan-ly-nhap-kho");
+    }
+}

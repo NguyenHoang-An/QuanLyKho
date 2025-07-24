@@ -1,0 +1,144 @@
+﻿@page "/hieu-chinh-chi-tiet-xuat/{SoPhieu}"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject ISanPhamService SanPhamService
+@inject IKhoService KhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h2 class="text-2xl font-bold text-blue-700 mb-4">📦 Hiệu chỉnh chi tiết phiếu xuất</h2>
+
+@if (header == null)
+{
+    <p class="text-red-600">Không tìm thấy phiếu xuất với số: @SoPhieu</p>
+}
+else
+{
+    <div class="mb-6 p-4 border rounded bg-white shadow-sm">
+        <h3 class="text-lg font-semibold text-blue-600">Thông tin phiếu xuất</h3>
+        <p><strong>Số phiếu:</strong> @header.So_Phieu_Xuat_Kho</p>
+        <p><strong>Kho:</strong> @GetTenKho(header.Kho_ID)</p>
+        <p><strong>Ngày xuất:</strong> @header.Ngay_Xuat_Kho.ToString("dd/MM/yyyy")</p>
+    </div>
+
+    <div class="mb-4">
+        <h4 class="font-semibold mb-2">➕ Thêm sản phẩm</h4>
+        <div class="flex gap-2 flex-wrap items-end">
+            <select class="border px-3 py-2 rounded w-40" @onchange="OnMaSPChanged">
+                <option value="">-- Chọn mã sản phẩm --</option>
+                @foreach (var sp in dsSanPham)
+                {
+                    <option value="@sp.Ma_SP">@sp.Ma_SP</option>
+                }
+            </select>
+            <input class="border px-3 py-2 rounded w-52 bg-gray-100" value="@TenSanPhamMoi" readonly />
+            <input type="number" placeholder="Số lượng" @bind="newItem.SL_Xuat" class="border px-2 py-1 rounded w-24" />
+            <input type="number" placeholder="Đơn giá" @bind="newItem.Don_Gia_Xuat" class="border px-2 py-1 rounded w-28" />
+            <button class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" @onclick="AddNew">➕ Thêm</button>
+        </div>
+    </div>
+
+    <table class="table-auto w-full border text-sm">
+        <thead>
+            <tr class="bg-gray-100">
+                <th class="px-2 py-1">Mã SP</th>
+                <th class="px-2 py-1">Tên SP</th>
+                <th class="px-2 py-1">Số lượng</th>
+                <th class="px-2 py-1">Đơn giá</th>
+                <th class="px-2 py-1">Trị giá</th>
+                
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in chiTietList)
+            {
+                <tr>
+                    <td class="border px-2 py-1">@item.San_Pham_ID</td>
+                    <td class="border px-2 py-1">@GetTenSanPham(item.San_Pham_ID)</td>
+                    <td class="border px-2 py-1"><input type="number" @bind="item.SL_Xuat" class="w-16 border rounded px-1" /></td>
+                    <td class="border px-2 py-1"><input type="number" @bind="item.Don_Gia_Xuat" class="w-20 border rounded px-1" /></td>
+                    <td class="border px-2 py-1">@(@item.SL_Xuat* @item.Don_Gia_Xuat)</td>
+                    <td class="border px-2 py-1 text-center">
+                        <button class="text-red-600 hover:underline" @onclick="() => RemoveItem(item)">X</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="mt-6 flex justify-end">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded shadow" @onclick="SaveAll">💾 Lưu Phiếu</button>
+    </div>
+}
+
+@code {
+    [Parameter] public string SoPhieu { get; set; } = string.Empty;
+    private XuatKhoHeader? header;
+    private List<XuatKhoDetail> chiTietList = new();
+    private XuatKhoDetail newItem = new();
+    private List<SanPham> dsSanPham = new();
+    private List<Kho> dsKho = new();
+    private string TenSanPhamMoi = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        header = await XuatKhoService.GetPhieuAsync(SoPhieu);
+        if (header != null)
+        {
+            chiTietList = await XuatKhoService.GetChiTietPhieuAsync(header.Id);
+        }
+        dsSanPham = await SanPhamService.GetAllAsync();
+        dsKho = await KhoService.GetAllKhoAsync();
+    }
+
+    void AddNew()
+    {
+        if (!string.IsNullOrWhiteSpace(newItem.San_Pham_ID) && newItem.SL_Xuat > 0 && newItem.Don_Gia_Xuat > 0 && header != null)
+        {
+            newItem.Xuat_Kho_ID = header.Id;
+            chiTietList.Add(new XuatKhoDetail
+            {
+                Xuat_Kho_ID = newItem.Xuat_Kho_ID,
+                San_Pham_ID = newItem.San_Pham_ID,
+                SL_Xuat = newItem.SL_Xuat,
+                Don_Gia_Xuat = newItem.Don_Gia_Xuat
+            });
+            newItem = new();
+            TenSanPhamMoi = string.Empty;
+        }
+    }
+
+    void RemoveItem(XuatKhoDetail item)
+    {
+        chiTietList.Remove(item);
+    }
+
+    async Task SaveAll()
+    {
+        if (header != null)
+        {
+            await XuatKhoService.UpdateChiTietAsync(header.Id, chiTietList);
+            Navigation.NavigateTo("/xuat-kho");
+        }
+    }
+
+    void OnMaSPChanged(ChangeEventArgs e)
+    {
+        var ma = e?.Value?.ToString()?.Trim();
+        newItem.San_Pham_ID = ma;
+        TenSanPhamMoi = GetTenSanPham(ma);
+    }
+
+    string GetTenSanPham(string? ma)
+    {
+        if (string.IsNullOrWhiteSpace(ma)) return "(Không rõ)";
+        var sp = dsSanPham.FirstOrDefault(x => x.Ma_SP?.Trim().ToLower() == ma.Trim().ToLower());
+        return sp?.Ten_SP ?? "(Không rõ)";
+    }
+
+    string GetTenKho(int? id)
+    {
+        return dsKho.FirstOrDefault(k => k.Id == id)?.Ten_Kho ?? "(Không rõ)";
+    }
+}

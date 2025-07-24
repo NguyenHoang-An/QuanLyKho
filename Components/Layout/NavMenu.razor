@@ -1,0 +1,72 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Client</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="donvitinh" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> Đơn vị tính
+            </NavLink>
+        </li>
+        <NavLink href="loaisanpham" Match="NavLinkMatch.All">
+            <span class="oi oi-list-rich" aria-hidden="true"></span> Loại sản phẩm
+        </NavLink>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="sanpham" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true"></span> Sản Phẩm
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="nhacungcap" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Nhà Cung Cấp</span> 
+            </NavLink>
+        </li>
+       <li class="nav-item px-3">
+            <NavLink class="nav-link" href="kho" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Kho</span> 
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="kho-user" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Phân Quyền</span>
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="quan-ly-nhap-kho" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Nhập Kho</span>
+            </NavLink>
+        </li> 
+
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="xuat-kho" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Xuất Kho</span>
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="hang-nhap" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Báo Cáo Hàng Nhập</span>
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="hang-xuat" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Báo Cáo Hang Xuất</span>
+            </NavLink>
+        </li>
+        <li class="nav-item px-3">
+            <NavLink class="nav-link" href="hang-ton" Match="NavLinkMatch.All">
+                <span class="oi oi-list-rich" aria-hidden="true">Báo Cáo Hàng Tồn</span>
+            </NavLink>
+        </li>
+    </nav>
+</div>
+

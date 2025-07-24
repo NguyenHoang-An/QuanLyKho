@@ -1,0 +1,93 @@
+﻿@page "/hieu-chinh-phieu-xuat/{SoPhieu}"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject IKhoService KhoService
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<h3 class="text-lg font-bold mb-4">✏️ Hiệu chỉnh thông tin phiếu xuất</h3>
+
+@if (model == null)
+{
+    <p class="text-red-600">Không tìm thấy phiếu với số: @SoPhieu</p>
+}
+else
+{
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label class="block font-medium">Số phiếu xuất *</label>
+            <InputText class="input bg-gray-100" @bind-Value="model.So_Phieu_Xuat_Kho" readonly />
+        </div>
+
+        <div>
+            <label class="block font-medium">Kho *</label>
+            <InputSelect class="input" @bind-Value="model.Kho_ID" TValue="int?">
+                <option value="">-- Chọn kho --</option>
+                @foreach (var kho in dsKho)
+                {
+                    <option value="@kho.Id">@kho.Ten_Kho</option>
+                }
+            </InputSelect>
+        </div>
+
+        <div>
+            <label class="block font-medium">Ngày xuất kho *</label>
+            <InputDate class="input" @bind-Value="model.Ngay_Xuat_Kho" />
+        </div>
+
+        <div class="col-span-2">
+            <label class="block font-medium">Ghi chú</label>
+            <InputTextArea class="input w-full" @bind-Value="model.Ghi_Chu" />
+        </div>
+    </div>
+
+    <div class="mt-6 flex gap-4">
+        <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded" @onclick="SaveLai">💾 Lưu lại</button>
+        <button type="button" class="px-4 py-2 border rounded" @onclick="HuyBo">❌ Hủy</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="mt-4 text-red-600 font-semibold">@ErrorMessage</div>
+    }
+}
+
+@code {
+    [Parameter] public string SoPhieu { get; set; } = string.Empty;
+
+    private XuatKhoEdit? model;
+    private List<Kho> dsKho = new();
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        dsKho = await KhoService.GetAllKhoAsync();
+        model = await XuatKhoService.GetPhieuFromCustomTableAsync(SoPhieu);
+        StateHasChanged();
+    }
+
+    private async Task SaveLai()
+    {
+        ErrorMessage = null;
+
+        if (model == null || string.IsNullOrWhiteSpace(model.So_Phieu_Xuat_Kho) || !model.Kho_ID.HasValue || !model.Ngay_Xuat_Kho.HasValue)
+        {
+            ErrorMessage = "❌ Vui lòng nhập đầy đủ thông tin.";
+            return;
+        }
+
+        var result = await XuatKhoService.UpdateHeaderToCustomTableAsync(model);
+
+        if (result)
+        {
+            Navigation.NavigateTo("/xuat-kho");
+        }
+        else
+        {
+            ErrorMessage = "❌ Không thể lưu phiếu. Số phiếu không tồn tại trong hệ thống.";
+        }
+    }
+
+    private void HuyBo() => Navigation.NavigateTo("/xuat-kho");
+}

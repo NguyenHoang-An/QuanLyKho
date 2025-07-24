@@ -1,0 +1,179 @@
+﻿@page "/loaisanpham"
+@using Client.Model
+@using Client.Server
+@inject ILoaiSanPhamService LoaiSanPhamService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h3>Quản lý Loại Sản Phẩm</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else if (!showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">Thêm mới</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Mã Loại Sản Phẩm</th>
+                <th>Tên Loại Sản Phẩm</th>
+                <th>Ghi chú</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ma_LSP</td>
+                    <td>@item.Ten_LSP</td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditForm(item.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <h4>@(isEdit ? "Cập nhật" : "Thêm mới") Loại Sản Phẩm</h4>
+
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <div class="mb-3">
+            <label class="form-label">Mã Loại Sản Phẩm</label>
+            <InputText class="form-control" @bind-Value="model.Ma_LSP" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Tên Loại Sản Phẩm</label>
+            <InputText class="form-control" @bind-Value="model.Ten_LSP" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Ghi chú</label>
+            <InputText class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        <button type="submit" class="btn btn-primary me-2">@((isEdit) ? "Cập nhật" : "Thêm mới")</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Hủy</button>
+    </EditForm>
+}
+
+@code {
+    private List<LoaiSanPham> danhSach = new();
+    private LoaiSanPham model = new();
+    private bool isLoading = true;
+    private bool isEdit = false;
+    private bool showForm = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        danhSach = await LoaiSanPhamService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        model = new LoaiSanPham();
+        isEdit = false;
+        showForm = true;
+        errorMessage = null;
+    }
+
+    private void ShowEditForm(int id)
+    {
+        var item = danhSach.FirstOrDefault(x => x.Id == id);
+        if (item != null)
+        {
+            model = new LoaiSanPham
+            {
+                Id = item.Id,
+                Ma_LSP = item.Ma_LSP,
+                Ten_LSP = item.Ten_LSP,
+                Ghi_Chu = item.Ghi_Chu
+            };
+            isEdit = true;
+            showForm = true;
+            errorMessage = null;
+        }
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc muốn xóa không?");
+        if (confirmed)
+        {
+            await LoaiSanPhamService.DeleteAsync(id);
+            await LoadData();
+        }
+    }
+
+    private void Cancel()
+    {
+        showForm = false;
+        model = new LoaiSanPham();
+        isEdit = false;
+        errorMessage = null;
+    }
+
+    private async Task HandleSubmit()
+    {
+        errorMessage = null;
+
+        var ma = model.Ma_LSP?.Trim().ToLower();
+        var ten = model.Ten_LSP?.Trim().ToLower();
+
+        bool maTonTai = danhSach.Any(x =>
+            x.Ma_LSP.Trim().ToLower() == ma &&
+            (!isEdit || x.Id != model.Id));
+
+        bool tenTonTai = danhSach.Any(x =>
+            x.Ten_LSP.Trim().ToLower() == ten &&
+            (!isEdit || x.Id != model.Id));
+
+        if (maTonTai)
+        {
+            errorMessage = "Mã loại sản phẩm đã tồn tại.";
+            return;
+        }
+
+        if (tenTonTai)
+        {
+            errorMessage = "Tên loại sản phẩm đã tồn tại.";
+            return;
+        }
+
+        if (isEdit)
+        {
+            await LoaiSanPhamService.UpdateAsync(model);
+        }
+        else
+        {
+            await LoaiSanPhamService.AddAsync(model);
+        }
+
+        await LoadData();
+        Cancel();
+    }
+}

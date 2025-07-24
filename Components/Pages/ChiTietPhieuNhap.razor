@@ -1,0 +1,125 @@
+﻿@page "/edit-chi-tiet-nhap/{Id:int}"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3>Thêm chi tiết phiếu nhập</h3>
+
+@if (Header == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <div class="mb-3">
+        <label><b>Số phiếu:</b></label> @Header.So_Phieu_Nhap_Kho<br />
+        <label><b>Ngày nhập:</b></label> @Header.Ngay_Nhap_Kho.ToShortDateString()<br />
+        <label><b>Kho:</b></label> @Header.Kho?.Ten_Kho<br />
+        <label><b>Nhà cung cấp:</b></label> @Header.NhaCungCap?.Ten_NCC<br />
+        <label><b>Ghi chú:</b></label> @Header.Ghi_Chu
+    </div>
+
+    <EditForm Model="detail" OnValidSubmit="HandleAdd">
+        <DataAnnotationsValidator />
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Mã sản phẩm</label>
+                <InputText class="form-control" @bind-Value="detail.Ma_SP" />
+                <ValidationMessage For="@(() => detail.Ma_SP)" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Số lượng</label>
+                <InputNumber class="form-control" @bind-Value="detail.SL_Nhap" />
+                <ValidationMessage For="@(() => detail.SL_Nhap)" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Đơn giá</label>
+                <InputNumber class="form-control" @bind-Value="detail.Don_Gia_Nhap" />
+                <ValidationMessage For="@(() => detail.Don_Gia_Nhap)" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success">Thêm</button>
+            </div>
+        </div>
+    </EditForm>
+
+    <hr />
+
+    <table class="table table-bordered mt-3">
+        <thead class="table-light">
+            <tr>
+                <th>Mã SP</th>
+                <th>Tên SP</th>
+                <th>SL</th>
+                <th>Đơn giá</th>
+                <th>Trị giá</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in ChiTiet)
+            {
+                <tr>
+                    <td>@item.Ma_SP</td>
+                    <td>@item.Ten_SP</td>
+                    <td>@item.SL_Nhap</td>
+                    <td>@item.Don_Gia_Nhap</td>
+                    <td>@item.TriGia</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.San_Pham_ID)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="mt-3 text-end">
+        <button class="btn btn-secondary" @onclick="LuuVaThoat">Lưu và quay lại</button>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private HieuChinhThongTinPhieuNhap? Header;
+    private List<NhapKhoChiTietModel> ChiTiet = new();
+    private NhapKhoChiTietModel detail = new();
+    private bool showAlert = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Header = await NhapKhoService.GetHeaderAsync(Id);
+        ChiTiet = await NhapKhoService.GetChiTietModelsAsync(Id);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (showAlert)
+        {
+            showAlert = false;
+            await JS.InvokeVoidAsync("alert", "Chi tiết đã được lưu và quay lại trang quản lý.");
+        }
+    }
+
+    private async Task HandleAdd()
+    {
+        await NhapKhoService.AddDetailAsync(Id, detail);
+        detail = new();
+        ChiTiet = await NhapKhoService.GetChiTietModelsAsync(Id);
+    }
+
+    private async Task Delete(int sanPhamId)
+    {
+        await NhapKhoService.DeleteDetailAsync(Id, sanPhamId);
+        ChiTiet = await NhapKhoService.GetChiTietModelsAsync(Id);
+    }
+
+    private void LuuVaThoat()
+    {
+        showAlert = true;
+        Navigation.NavigateTo("/quan-ly-nhap-kho", true);
+    }
+}

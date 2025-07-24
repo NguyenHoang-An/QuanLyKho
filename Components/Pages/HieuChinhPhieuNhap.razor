@@ -1,0 +1,109 @@
+﻿@page "/hieu-chinh-phieu-nhap/{id:int}"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+<h3>Hiệu chỉnh thông tin phiếu nhập</h3>
+
+@if (model == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleValidSubmit" FormName="EditHeaderForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label for="SoPhieu">Số phiếu nhập:</label>
+            <InputText id="SoPhieu" class="form-control" @bind-Value="model.So_Phieu_Nhap_Kho" />
+            <ValidationMessage For="@(() => model.So_Phieu_Nhap_Kho)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="NgayNhap">Ngày nhập kho:</label>
+            <InputDate id="NgayNhap" class="form-control" @bind-Value="model.Ngay_Nhap_Kho" />
+            <ValidationMessage For="@(() => model.Ngay_Nhap_Kho)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="Kho">Kho:</label>
+            <InputSelect id="Kho" class="form-control" @bind-Value="model.Kho_ID">
+                <option value="">-- Chọn kho --</option>
+                @foreach (var kho in danhSachKho)
+                {
+                    <option value="@kho.Id">@kho.Ten_Kho</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => model.Kho_ID)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="NCC">Nhà cung cấp:</label>
+            <InputSelect id="NCC" class="form-control" @bind-Value="model.NCC_ID">
+                <option value="">-- Chọn nhà cung cấp --</option>
+                @foreach (var ncc in danhSachNCC)
+                {
+                    <option value="@ncc.Id">@ncc.Ten_NCC</option>
+                }
+            </InputSelect>
+            <ValidationMessage For="@(() => model.NCC_ID)" />
+        </div>
+
+        <div class="mb-3">
+            <label for="GhiChu">Ghi chú:</label>
+            <InputTextArea id="GhiChu" class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Lưu</button>
+    </EditForm>
+}
+
+@code {
+    [Parameter] public int id { get; set; }
+    private HieuChinhThongTinPhieuNhap? model;
+    private List<Kho> danhSachKho = new();
+    private List<NhaCungCap> danhSachNCC = new();
+    private string? alertMessage = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        model = await NhapKhoService.GetHeaderAsync(id);
+        danhSachKho = await NhapKhoService.GetAllKhosAsync();
+        danhSachNCC = await NhapKhoService.GetAllNCCsAsync();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (string.IsNullOrWhiteSpace(model.So_Phieu_Nhap_Kho))
+        {
+            alertMessage = "Số phiếu nhập không được rỗng!";
+            return;
+        }
+
+        bool isUnique = await NhapKhoService.IsSoPhieuNhapUniqueExceptIdAsync(model.So_Phieu_Nhap_Kho, model.Id);
+        if (!isUnique)
+        {
+            alertMessage = "Số phiếu nhập đã tồn tại!";
+            return;
+
+        }
+
+        await NhapKhoService.UpdateHeaderAsync(model);
+        alertMessage = "Cập nhật thành công!";
+        Navigation.NavigateTo("/quan-ly-nhap-kho", true);
+    }
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!string.IsNullOrEmpty(alertMessage))
+        {
+            var message = alertMessage;
+            alertMessage = null;
+            await JS.InvokeVoidAsync("alert", message);
+        }
+    }
+
+}

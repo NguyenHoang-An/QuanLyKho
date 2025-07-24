@@ -1,0 +1,211 @@
+﻿@page "/in-phieu-xuat/{SoPhieu}"
+@using Client.Model
+@using Client.Server
+@inject IXuatKhoService XuatKhoService
+@inject IKhoService KhoService
+@inject ISanPhamService SanPhamService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3 class="text-xl font-bold mb-4 text-center">PHIẾU XUẤT KHO</h3>
+
+@if (isLoading)
+{
+    <p class="text-center text-gray-500">Đang tải dữ liệu...</p>
+}
+else if (header == null)
+{
+    <p class="text-center text-red-600">Không tìm thấy phiếu xuất với số: @SoPhieu</p>
+}
+else
+{
+    <div class="text-sm leading-6">
+        <p class="text-center font-semibold">Ngày @header.Ngay_Xuat_Kho?.ToString("dd") tháng @header.Ngay_Xuat_Kho?.ToString("MM") năm @header.Ngay_Xuat_Kho?.ToString("yyyy")</p>
+        <p class="text-center font-semibold">Số: <span class="underline">@header.So_Phieu_Xuat_Kho</span></p>
+
+        <h4 class="font-semibold mt-4 mb-1">I. Thông tin chung</h4>
+        <div class="text-sm space-y-1">
+            <p>
+                1. Lệnh giao hàng:
+                @if (!isPrinting)
+                {
+                    <input class="border px-1" @bind="LenhGiaoHang" />
+                }
+                else
+                {
+                    <strong>@LenhGiaoHang</strong>
+                }
+            </p>
+            <p>
+                2. Cửa hàng:
+                @if (!isPrinting)
+                {
+                    <input class="border px-1" @bind="CuaHang" />
+                }
+                else
+                {
+                    <strong>@CuaHang</strong>
+                }
+            </p>
+            <p>
+                3. Kho:
+                <strong>@GetTenKho(header.Kho_ID)</strong>
+            </p>
+            <p>
+                4. Ghi chú:
+                @if (!isPrinting)
+                {
+                    <input class="border px-1 w-full" @bind="GhiChu" />
+                }
+                else
+                {
+                    <strong>@GhiChu</strong>
+                }
+            </p>
+        </div>
+
+        <h4 class="font-semibold mt-4 mb-1">II. Thông tin hàng</h4>
+        <table class="table-auto w-full border text-sm">
+            <thead class="bg-yellow-200">
+                <tr>
+                    <th class="border px-2 py-1">STT</th>
+                    <th class="border px-2 py-1">Mã Hàng</th>
+                    <th class="border px-2 py-1">Tên Hàng</th>
+                    <th class="border px-2 py-1">PO</th>
+                    <th class="border px-2 py-1">Số Chỉ Lệnh</th>
+                    <th class="border px-2 py-1">SL</th>
+                    <th class="border px-2 py-1">ĐVT</th>
+                    <th class="border px-2 py-1">Kiểm kê</th>
+                    <th class="border px-2 py-1">Ghi Chú</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < chiTietList.Count; i++)
+                {
+                    var item = chiTietList[i];
+                    <tr>
+                        <td class="border px-2 py-1 text-center">@(i + 1)</td>
+                        <td class="border px-2 py-1">@item.San_Pham_ID</td>
+                        <td class="border px-2 py-1">@GetTenSanPham(item.San_Pham_ID)</td>
+                        <td class="border px-2 py-1"></td>
+                        <td class="border px-2 py-1"></td>
+                        <td class="border px-2 py-1 text-right">@item.SL_Xuat</td>
+                        <td class="border px-2 py-1">Đôi</td>
+                        <td class="border px-2 py-1"></td>
+                        <td class="border px-2 py-1"></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <h4 class="font-semibold mt-4 mb-1">III. Kết luận</h4>
+        <p>1. Tổng số lượng thực xuất (viết bằng số): <strong>@chiTietList.Sum(x => x.SL_Xuat)</strong></p>
+        <p>2. Tổng số lượng thực xuất (viết bằng chữ): <strong>@ToVietnameseWords(chiTietList.Sum(x => x.SL_Xuat))</strong></p>
+        <p>3. Mô tả khác biệt:</p>
+        <textarea class="border w-full h-24"></textarea>
+
+        <div class="mt-12 text-sm w-full">
+            <div class="text-center font-semibold w-full print:w-full">
+                <table class="table-fixed w-full min-w-[800px]">
+                    <colgroup>
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                        <col style="width: 24%">
+                    </colgroup>
+                    <tr class="align-top">
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Người lập phiếu</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Người nhận hàng</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Điều phối</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                        <td class="px-4">
+                            <div class="font-bold capitalize">Giám đốc</div>
+                            <div class="font-normal">(Ký, họ tên)</div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="printButtons" class="mt-6 flex gap-4">
+        <button class="bg-blue-500 text-black px-4 py-2 rounded" @onclick="InPhieu">🖨️ In phiếu</button>
+        <button class="bg-gray-400 text-black px-4 py-2 rounded" @onclick='() => Navigation.NavigateTo("/xuat-kho")'>🔙 Quay lại</button>
+    </div>
+}
+
+@code {
+    [Parameter] public string SoPhieu { get; set; } = string.Empty;
+
+    private XuatKhoEdit? header;
+    private List<XuatKhoDetail> chiTietList = new();
+    private List<Kho> dsKho = new();
+    private List<SanPham> dsSanPham = new();
+    private bool isLoading = true;
+
+    private string LenhGiaoHang = "425/07";
+    private string CuaHang = "Khách lẻ";
+    private string GhiChu = "";
+    private bool isPrinting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPhieu();
+    }
+
+    private async Task LoadPhieu()
+    {
+        header = await XuatKhoService.GetPhieuFromCustomTableAsync(SoPhieu);
+        var headerEF = await XuatKhoService.GetPhieuAsync(SoPhieu);
+        if (headerEF != null)
+        {
+            chiTietList = await XuatKhoService.GetChiTietPhieuAsync(headerEF.Id);
+        }
+        dsKho = await KhoService.GetAllKhoAsync();
+        dsSanPham = await SanPhamService.GetAllAsync();
+        GhiChu = header?.Ghi_Chu ?? "";
+        isLoading = false;
+        StateHasChanged();
+    }
+
+    private string GetTenKho(int? id) => dsKho.FirstOrDefault(k => k.Id == id)?.Ten_Kho ?? "(Không rõ)";
+    private string GetTenSanPham(string? ma) => dsSanPham.FirstOrDefault(x => x.Ma_SP == ma)?.Ten_SP ?? "(Không rõ)";
+
+    private string ToVietnameseWords(int number)
+    {
+        return number switch
+        {
+            1 => "Một",
+            2 => "Hai",
+            3 => "Ba",
+            4 => "Bốn",
+            5 => "Năm",
+            _ => number.ToString()
+        };
+    }
+
+    private async Task InPhieu()
+    {
+        isPrinting = true;
+        StateHasChanged();
+        await Task.Delay(300);
+        await JS.InvokeVoidAsync("eval", @"
+            const btns = document.getElementById('printButtons');
+            if (btns) btns.style.display = 'none';
+            window.print();
+            setTimeout(() => {
+                if (btns) btns.style.display = 'flex';
+            }, 1000);
+        ");
+        isPrinting = false;
+    }
+}

@@ -1,0 +1,165 @@
+﻿@page "/sanpham"
+@using System.ComponentModel.DataAnnotations
+@using Client.Model
+@using Client.Server
+@inject ISanPhamService SanPhamService
+@inject ILoaiSanPhamService LoaiSanPhamService
+@inject IDonViTinhService DonViTinhService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h3>Quản lý Sản Phẩm</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else if (!showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">Thêm mới</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Mã Sản Phẩm</th>
+                <th>Tên Sản Phẩm</th>
+                <th>Loại Sản Phẩm</th>
+                <th>Đơn vị tính</th>
+                <th>Ghi chú</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ma_SP</td>
+                    <td>@item.Ten_SP</td>
+                    <td>@LoaiSanPhams.FirstOrDefault(x => x.Id == item.LoaiSanPhamId)?.Ten_LSP</td>
+                    <td>@DonViTinhs.FirstOrDefault(x => x.Id == item.DonViTinhId)?.Ten_DonViTinh</td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditForm(item.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Mã sản phẩm</label>
+            <InputText class="form-control" @bind-Value="model.Ma_SP" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tên sản phẩm</label>
+            <InputText class="form-control" @bind-Value="model.Ten_SP" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Loại sản phẩm</label>
+            <InputSelect class="form-control" @bind-Value="model.LoaiSanPhamId">
+                <option value="">-- Chọn loại sản phẩm --</option>
+                @foreach (var loai in LoaiSanPhams)
+                {
+                    <option value="@loai.Id">@loai.Ten_LSP</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Đơn vị tính</label>
+            <InputSelect class="form-control" @bind-Value="model.DonViTinhId">
+                <option value="">-- Chọn đơn vị tính --</option>
+                @foreach (var dv in DonViTinhs)
+                {
+                    <option value="@dv.Id">@dv.Ten_DonViTinh</option>
+                }
+            </InputSelect>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Ghi chú</label>
+            <InputText class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">@((isEdit ? "Cập nhật" : "Thêm mới"))</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Hủy</button>
+    </EditForm>
+}
+
+@code {
+    private List<SanPham> danhSach = new();
+    private List<LoaiSanPham> LoaiSanPhams = new();
+    private List<DonViTinh> DonViTinhs = new();
+    private SanPham model = new();
+    private bool isLoading = true;
+    private bool isEdit = false;
+    private bool showForm = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        LoaiSanPhams = await LoaiSanPhamService.GetAllAsync();
+        DonViTinhs = await DonViTinhService.GetAllAsync();
+        danhSach = await SanPhamService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        model = new SanPham();
+        showForm = true;
+        isEdit = false;
+    }
+
+    private void ShowEditForm(int id)
+    {
+        var item = danhSach.FirstOrDefault(x => x.Id == id);
+        if (item != null)
+        {
+            model = new SanPham
+            {
+                Id = item.Id,
+                Ma_SP = item.Ma_SP,
+                Ten_SP = item.Ten_SP,
+                LoaiSanPhamId = item.LoaiSanPhamId,
+                DonViTinhId= item.DonViTinhId,
+                Ghi_Chu = item.Ghi_Chu
+            };
+            showForm = true;
+            isEdit = true;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isEdit)
+            await SanPhamService.UpdateAsync(model);
+        else
+            await SanPhamService.AddAsync(model);
+
+        danhSach = await SanPhamService.GetAllAsync();
+        Cancel();
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa không?");
+        if (confirmed)
+        {
+            await SanPhamService.DeleteAsync(id);
+            danhSach = await SanPhamService.GetAllAsync();
+        }
+    }
+
+    private void Cancel()
+    {
+        model = new SanPham();
+        showForm = false;
+        isEdit = false;
+    }
+}

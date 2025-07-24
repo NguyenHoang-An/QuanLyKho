@@ -1,0 +1,120 @@
+﻿@page "/quan-ly-nhap-kho"
+@using Client.Model
+@using Client.Server
+@inject INhapKhoService NhapKhoService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<h3>Quản lý phiếu nhập kho</h3>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <button class="btn btn-primary" @onclick="NavigateToThemPhieu">
+        + Thêm phiếu nhập mới
+    </button>
+
+    <div>
+        <label class="form-label me-2">Chọn phiếu để in:</label>
+        <select class="form-select d-inline-block w-auto me-2" @bind="SelectedId">
+            <option value="">-- Chọn phiếu --</option>
+            @foreach (var item in DanhSach)
+            {
+                <option value="@item.Id">@item.So_Phieu_Nhap_Kho</option>
+            }
+        </select>
+        <button class="btn btn-outline-secondary" @onclick="() => InPhieu(SelectedId)" disabled="@(!SelectedId.HasValue)">In phiếu</button>
+    </div>
+</div>
+
+@if (DanhSach == null)
+{
+    <p><em>Đang tải dữ liệu...</em></p>
+}
+else if (!DanhSach.Any())
+{
+    <p><i>Chưa có phiếu nhập nào.</i></p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead class="table-light">
+            <tr>
+                <th>Số phiếu</th>
+                <th>Ngày nhập</th>
+                <th>Kho</th>
+                <th>Nhà cung cấp</th>
+                <th>Ghi chú</th>
+                <th>Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in DanhSach)
+            {
+                <tr>
+                    <td>@item.So_Phieu_Nhap_Kho</td>
+                    <td>@item.Ngay_Nhap_Kho?.ToShortDateString()</td>
+                    <td>@item.Kho?.Ten_Kho </td>
+                    <td>@item.NhaCungCap?.Ten_NCC </td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-info" @onclick="() => NavigateToChiTiet(item.Id)">Hiệu chỉnh chi tiết</button>
+                            <button class="btn btn-sm btn-warning" @onclick="() => NavigateToEditHeader(item.Id)">Hiệu chỉnh phiếu</button>
+                            <button class="btn btn-sm btn-secondary" @onclick="() => NavigateToViewDetail(item.Id)">Xem</button>
+                            <button class="btn btn-sm btn-danger" @onclick="() => Xoa(item.Id)">Xóa</button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<NhapKho> DanhSach = new();
+    private int? SelectedId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        DanhSach = await NhapKhoService.GetAllAsync();
+    }
+
+    private void NavigateToThemPhieu()
+    {
+        Navigation.NavigateTo("/them-phieu-nhap");
+    }
+
+    private void NavigateToChiTiet(int id)
+    {
+        Navigation.NavigateTo($"/hieu-chinh-chi-tiet-nhap/{id}");
+    }
+
+    private void NavigateToEditHeader(int id)
+    {
+        Navigation.NavigateTo($"/hieu-chinh-phieu-nhap/{id}");
+    }
+
+    private void NavigateToViewDetail(int id)
+    {
+        Navigation.NavigateTo($"/chi-tiet-nhap/{id}");
+    }
+
+    private void InPhieu(int? id)
+    {
+        if (id.HasValue)
+        {
+            Navigation.NavigateTo($"/in-phieu-nhap-id/{id.Value}", true);
+        }
+    }
+
+
+    private async Task Xoa(int id)
+    {
+        var confirm = await JS.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa?");
+        if (confirm)
+        {
+            await NhapKhoService.DeleteAsync(id);
+            DanhSach = await NhapKhoService.GetAllAsync();
+        }
+    }
+}

@@ -1,0 +1,132 @@
+﻿@page "/nhacungcap"
+@using Client.Model
+@using Client.Server
+@inject INhaCungCapService NhaCungCapService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<h3>Quản lý Nhà Cung Cấp</h3>
+
+@if (isLoading)
+{
+    <p>Đang tải dữ liệu...</p>
+}
+else if (!showForm)
+{
+    <button class="btn btn-primary mb-3" @onclick="ShowAddForm">Thêm mới</button>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Mã Nhà Cung Cấp</th>
+                <th>Tên Nhà Cung Cấp</th>
+                <th>Ghi chú</th>
+                <th>Thao tác</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in danhSach)
+            {
+                <tr>
+                    <td>@item.Ma_NCC</td>
+                    <td>@item.Ten_NCC</td>
+                    <td>@item.Ghi_Chu</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning me-2" @onclick="() => ShowEditForm(item.Id)">Sửa</button>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Delete(item.Id)">Xóa</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <EditForm Model="model" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="mb-3">
+            <label class="form-label">Mã Nhà Cung Cấp</label>
+            <InputText class="form-control" @bind-Value="model.Ma_NCC" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Tên Nhà Cung Cấp</label>
+            <InputText class="form-control" @bind-Value="model.Ten_NCC" />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Ghi chú</label>
+            <InputText class="form-control" @bind-Value="model.Ghi_Chu" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">@((isEdit ? "Cập nhật" : "Thêm mới"))</button>
+        <button type="button" class="btn btn-secondary" @onclick="Cancel">Hủy</button>
+    </EditForm>
+}
+
+@code {
+    private List<NhaCungCap> danhSach = new();
+    private NhaCungCap model = new();
+    private bool isEdit = false;
+    private bool showForm = false;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        danhSach = await NhaCungCapService.GetAllAsync();
+        isLoading = false;
+    }
+
+    private void ShowAddForm()
+    {
+        model = new NhaCungCap();
+        showForm = true;
+        isEdit = false;
+    }
+
+    private void ShowEditForm(int id)
+    {
+        var item = danhSach.FirstOrDefault(x => x.Id == id);
+        if (item != null)
+        {
+            model = new NhaCungCap
+            {
+                Id = item.Id,
+                Ma_NCC = item.Ma_NCC,
+                Ten_NCC = item.Ten_NCC,
+                Ghi_Chu = item.Ghi_Chu
+            };
+            showForm = true;
+            isEdit = true;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isEdit)
+            await NhaCungCapService.UpdateAsync(model);
+        else
+            await NhaCungCapService.AddAsync(model);
+
+        danhSach = await NhaCungCapService.GetAllAsync();
+        Cancel();
+    }
+
+    private async Task Delete(int id)
+    {
+        bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Bạn có chắc chắn muốn xóa không?");
+        if (confirmed)
+        {
+            await NhaCungCapService.DeleteAsync(id);
+            danhSach = await NhaCungCapService.GetAllAsync();
+        }
+    }
+
+    private void Cancel()
+    {
+        model = new NhaCungCap();
+        showForm = false;
+        isEdit = false;
+    }
+}
